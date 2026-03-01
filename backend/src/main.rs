@@ -1,6 +1,6 @@
 mod config;
 mod models;
-mod binance;
+mod coingecko;
 mod price_engine;
 mod ws_server;
 use config::Config;

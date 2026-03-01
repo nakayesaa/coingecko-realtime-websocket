@@ -1,6 +1,17 @@
 use std::env;
 
-    #[derive(Debug)]
+// config.rs — Application configuration loaded from environment variables / .env file
+//
+// Responsibilities:
+//   - Define the `Config` struct that holds all runtime settings
+//   - Load values from environment using dotenvy + std::env
+//   - Parse TRADING_PAIRS from comma-separated string into a Vec<String>
+//   - Parse DEFAULT_TIME_WINDOW into the TimeWindow enum
+//   - Expose a Config::from_env() constructor that returns Result<Config, ...>
+//
+// This module is loaded once at startup in main.rs and then passed around via Arc<Config>
+
+#[derive(Debug)]
 pub enum TimeWindow {
     M1,
     M5,
@@ -15,12 +26,14 @@ pub struct Config {
     pub port: u16,
     pub trading_pairs: Vec<String>,
     pub broadcast_interval_ms: u64,
+    pub coin_ids : Vec<String>,
+    pub coingecko_api_key : Option<String>,
+    pub poll_interval_ms: u64,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self, String> {
         dotenvy::dotenv().ok();
-
         let trading_pairs = env::var("TRADING_PAIRS")
             .expect("TRADING_PAIRS missing from .env")
             .split(',')
@@ -49,11 +62,27 @@ impl Config {
             other => return Err(format!("Unknown DEFAULT_TIME_WINDOW: {}", other)),
         };
 
+        let coin_ids = env::var("COIN_IDS")
+            .expect("COIN_IDS missing from .env")
+            .split(',')
+            .map(|value| value.trim().to_string())
+            .collect();
+
+        let coingecko_api_key = env::var("COINGECKO_API_KEY").ok();
+
+        let poll_interval_ms = env::var("POLL_INTERVAL_MS")
+            .unwrap_or_else(|_| "60000".into())
+            .parse::<u64>()
+            .map_err(|_| "POLL_INTERVAL_MS must be a number".to_string())?;
+
         Ok(Self {
             time_window,
             port,
             trading_pairs,
+            coin_ids,
             broadcast_interval_ms,
+            coingecko_api_key,
+            poll_interval_ms
         })
     }
 }
