@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use chrono::{Utc, Duration};
-use crate::models::PriceTick;
-use crate::config::TimeWindow;
+use crate::models::{CarState, PriceTick, RaceState};
+use crate::config::{Config, TimeWindow};
 
 pub struct Pricestore{
     price_store : HashMap<String, VecDeque<PriceTick>>
@@ -63,5 +63,64 @@ fn compute_percent_change(store: &Pricestore, symbol: &str, window: &TimeWindow)
         }
     }else {
         return None;
+    }
+}
+
+const CAR_COLORS: &[&str] = &[
+    "#e63946", "#f4a261", "#31625c", "#457b9d",
+    "#8338ec", "#fb5607", "#06d6a0", "#ffd166",
+];
+
+pub fn compute_race_state(store: &Pricestore, window: &TimeWindow, config: &Config) -> RaceState {
+    // collect percent_change for every coin that has data
+    let mut percentage_map: HashMap<String, f64> = HashMap::new();
+    for symbol in &config.coin_ids{
+        if let Some(percentage) = compute_percent_change(store, symbol, window){
+            percentage_map.insert(symbol.clone(), percentage);
+        }
+    }
+
+    let minimum_percentage = percentage_map.values().cloned().fold(f64::INFINITY, f64::min);
+    let maximum_percentage = percentage_map.values().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let range = maximum_percentage - minimum_percentage;
+
+    let time_window_str = match window {
+        TimeWindow::M1  => "1m",
+        TimeWindow::M5  => "5m",
+        TimeWindow::M15 => "15m",
+        TimeWindow::H1  => "1h",
+        TimeWindow::H24 => "24h",
+    }.to_string();
+
+    let cars = config.coin_ids.iter().enumerate().map(|(i, symbol)|{
+        let percentage = percentage_map.get(symbol).copied().unwrap_or(0.0);
+
+        let speed = if range == 0.0{
+            0.9
+        }else{
+            0.3 + (percentage - minimum_percentage) / range * 1.2
+        };
+
+        let price = store.price_store
+            .get(symbol)
+            .and_then(|d| d.back())
+            .map(|t| t.price)
+            .unwrap_or(0.0);
+
+        CarState {
+            symbol: symbol.clone(),
+            display_name: symbol.clone(),
+            price,
+            percent_change: percentage,
+            speed,
+            position: 0.0,
+            color_hex: CAR_COLORS[i % CAR_COLORS.len()].to_string(),
+        }
+    }).collect();
+
+    RaceState {
+        timestamp: Utc::now(),
+        time_window: time_window_str,
+        cars,
     }
 }
