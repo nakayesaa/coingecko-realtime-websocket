@@ -1,16 +1,5 @@
 use std::env;
 
-// config.rs — Application configuration loaded from environment variables / .env file
-//
-// Responsibilities:
-//   - Define the `Config` struct that holds all runtime settings
-//   - Load values from environment using dotenvy + std::env
-//   - Parse TRADING_PAIRS from comma-separated string into a Vec<String>
-//   - Parse DEFAULT_TIME_WINDOW into the TimeWindow enum
-//   - Expose a Config::from_env() constructor that returns Result<Config, ...>
-//
-// This module is loaded once at startup in main.rs and then passed around via Arc<Config>
-
 #[derive(Debug)]
 pub enum TimeWindow {
     M1,
