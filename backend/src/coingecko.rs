@@ -3,13 +3,14 @@
 // and the rest of the backend can use
 
 //atomically refrence counted pointer, so multiple tasks can share the same config without owning it
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::Deserialize;
 use crate::config::Config;
 use crate::models::PriceTick;
+use crate::price_engine::Pricestore;
 
 #[derive(Deserialize)]
 struct CoinGeckoPrice {
@@ -59,7 +60,7 @@ pub async fn poll_once(
     Ok(ticks)
 }
 
-pub async fn run(config: Arc<Config>) {
+pub async fn run(config: Arc<Config>, price_store: Arc<Mutex<Pricestore>>) {
     // Create the HTTP client once here and reuse it every poll.
     let client = Client::new();
 
@@ -74,14 +75,21 @@ pub async fn run(config: Arc<Config>) {
                     tracing::info!("{}: ${:.2}  ({})", tick.symbol, tick.price, tick.timestamp);
                 }
 
+                // Push each tick into the shared PriceStore so
+                // the price engine can compute rolling % change from the history.
+                {
+                    let mut store = price_store.lock().unwrap();
+                    for tick in ticks.iter() {
+                        store.push_tick(tick.clone());
+                    }
+                }
+
                 tracing::info!(
                     "Polled {} coins from CoinGecko — next poll in {}s",
                     ticks.len(),
                     config.poll_interval_ms / 1000
                 );
 
-                // TODO: push each tick into the shared PriceStore so
-                // the price engine can compute rolling % change from the history.
                 tokio::time::sleep(tokio::time::Duration::from_millis(config.poll_interval_ms)).await;
             }
             Err(e) => {

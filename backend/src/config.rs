@@ -24,8 +24,9 @@ impl Config {
     pub fn from_env() -> Result<Self, String> {
         dotenvy::dotenv().ok();
         let trading_pairs = env::var("TRADING_PAIRS")
-            .expect("TRADING_PAIRS missing from .env")
+            .unwrap_or_default()
             .split(',')
+            .filter(|s| !s.trim().is_empty())
             .map(|value| value.trim().to_string())
             .collect();
 

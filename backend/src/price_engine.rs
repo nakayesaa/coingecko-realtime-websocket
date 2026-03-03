@@ -72,7 +72,6 @@ const CAR_COLORS: &[&str] = &[
 ];
 
 pub fn compute_race_state(store: &Pricestore, window: &TimeWindow, config: &Config) -> RaceState {
-    // collect percent_change for every coin that has data
     let mut percentage_map: HashMap<String, f64> = HashMap::new();
     for symbol in &config.coin_ids{
         if let Some(percentage) = compute_percent_change(store, symbol, window){
@@ -99,7 +98,7 @@ pub fn compute_race_state(store: &Pricestore, window: &TimeWindow, config: &Conf
             0.9
         }else{
             0.3 + (percentage - minimum_percentage) / range * 1.2
-        };
+        };  
 
         let price = store.price_store
             .get(symbol)
