@@ -140,7 +140,3 @@ src/
 | `dotenvy` | `.env` loading |
 | `tracing` / `tracing-subscriber` | Structured logging |
 | `chrono` (serde) | Timestamps + rolling window math |
-
-## License
-
-MIT
